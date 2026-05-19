@@ -39,7 +39,7 @@ jobs:
     
     - run: docker build -t apka .
     
-    - run: docker run -d --name kontener -p 8080:80 apka
+    - run: docker run -d --name kontener -p 8080:8080 apka
     
     - run: curl http://localhost:8080/health
     
