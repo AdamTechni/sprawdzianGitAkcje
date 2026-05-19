@@ -1,0 +1,61 @@
+name: ci
+on: [pull_request, push, workflow_dispatch]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: 8.3
+        tools: composer
+    - run: composer install --no-interaction --no-progress
+    - run: composer lint
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: shivammathur/setup-php@v2
+      with:
+        php-version: 8.3
+        tools: composer
+    - run: composer install --no-interaction --no-progress
+    - run: mkdir build
+    - run: composer test:junit
+    - uses: actions/upload-artifact@v4
+      with:
+        name: raport-junit
+        path: build/junit.xml
+
+  docker_smoke:
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' || github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+    
+    - run: docker build -t apka .
+    
+    - run: docker run -d --name kontener -p 8080:80 apka
+    
+    - run: curl http://localhost:8080/health
+    
+    - run: docker logs kontener &> logi_kontener.txt || true
+      if: always()
+      
+    - run: docker ps -a &> docker_ps.txt || true
+      if: always()
+      
+    - uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: pliki-docker
+        path: |
+          logi_kontener.txt
+          docker_ps.txt
+          
+    - run: docker rm -f kontener || true
+      if: always()
